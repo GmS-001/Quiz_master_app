@@ -1,5 +1,5 @@
 # backend/extensions.py
-
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -9,6 +9,7 @@ from flask_jwt_extended import JWTManager
 # into any part of our application (like models.py or app.py)
 # without creating a dependency loop.
 
+mail = Mail()
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()

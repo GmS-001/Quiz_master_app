@@ -6,6 +6,7 @@ export default createStore({
   state: {
     // Get token from browser's local storage if it exists
     token: localStorage.getItem('token') || null,
+    latestResult: null,
   },
   mutations: {
     // A mutation is the only way to change the state.
@@ -18,6 +19,9 @@ export default createStore({
         localStorage.removeItem('token');
       }
     },
+    SET_LATEST_RESULT(state, result) {
+      state.latestResult = result;
+    }
   },
   actions: {
     // Actions are used to commit mutations, especially for async operations.

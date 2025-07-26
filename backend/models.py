@@ -1,5 +1,5 @@
 # backend/models.py
-
+from datetime import datetime
 from .extensions import db # Import the 'db' instance from extensions.py
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -18,6 +18,15 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     full_name = db.Column(db.String(150), nullable=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    qualification = db.Column(db.String(150), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    gender = db.Column(db.String(10), nullable=True)
+    phone_number = db.Column(db.String(15), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    country = db.Column(db.String(100), nullable=True)
+    scores = db.relationship('Score', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -52,6 +61,7 @@ class Quiz(db.Model):
     remarks = db.Column(db.String(255), nullable=True)
     chapter_id = db.Column(db.Integer, db.ForeignKey('chapters.id'), nullable=False)
     questions = db.relationship('Question', backref='quiz', lazy=True, cascade="all, delete-orphan")
+    scores = db.relationship('Score', backref='quiz', lazy=True)
 
 class Question(db.Model):
     __tablename__ = 'questions'
@@ -62,4 +72,15 @@ class Question(db.Model):
     option3 = db.Column(db.String(255), nullable=False)
     option4 = db.Column(db.String(255), nullable=False)
     correct_option = db.Column(db.Integer, nullable=False) # Will store 1, 2, 3, or 4
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
+
+class Score(db.Model):
+    __tablename__ = 'scores'
+    id = db.Column(db.Integer, primary_key=True)
+    score_achieved = db.Column(db.Integer, nullable=False)
+    total_questions = db.Column(db.Integer, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    tab_switches = db.Column(db.Integer, default=0)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)

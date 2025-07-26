@@ -2,18 +2,20 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from .config import Config
-from .extensions import db, migrate, jwt # Import from extensions.py
+from .extensions import db, migrate, jwt,mail # Import from extensions.py
+from .celery_init import celery_init_app
 import click
+
 
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
-
     # Initialize extensions with the app
     db.init_app(app)
     migrate.init_app(app, db)
-    CORS(app)
     jwt.init_app(app)
+    mail.init_app(app)
+    CORS(app)
     
     # Import and register models
     from . import models
@@ -64,4 +66,6 @@ def create_app(config_class=Config):
             
     return app
 
+# Create celery app
+celery_app = celery_init_app(create_app())
     

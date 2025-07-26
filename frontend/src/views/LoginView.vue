@@ -16,41 +16,42 @@
               <button type="submit" class="btn btn-primary">Login</button>
             </div>
           </form>
+          <div class="text-center mt-3">
+            <p>Don't have an account? <router-link to="/register">Register here</router-link></p>
+          </div>
         </div>
       </div>
     </div>
   </template>
   
   <script>
-  export default {
-    name: 'LoginView',
-    data() {
-      return {
-        username: '',
-        password: '',
-        error: null
-      }
-    },
-    methods: {
-      async handleLogin() {
-        this.error = null; // Reset error message
-        try {
-          const credentials = {
-            username: this.username,
-            password: this.password
-          };
-          // This 'dispatches' the login action in our Vuex store.
-          await this.$store.dispatch('login', credentials);
-  
-          // On success, redirect the user to the dashboard.
-          this.$router.push('/dashboard');
-        } catch (err) {
-          this.error = 'Login failed. Please check your credentials.';
-          console.error('Login component error:', err);
+    import { jwtDecode } from 'jwt-decode'; // Import the new library
+
+    export default {
+      name: 'LoginView',
+      data() { /* ... unchanged ... */ },
+      methods: {
+        async handleLogin() {
+          this.error = null;
+          try {
+            const credentials = { username: this.username, password: this.password };
+            await this.$store.dispatch('login', credentials);
+
+            // Decode the token to check the user's role
+            const token = this.$store.state.token;
+            const decodedToken = jwtDecode(token);
+
+            // Redirect based on the is_admin claim
+            if (decodedToken.is_admin) {
+              this.$router.push('/dashboard'); // Admin dashboard
+            } else {
+              this.$router.push('/user-dashboard'); // User dashboard
+            }
+
+          } catch (err) { /* ... unchanged ... */ }
         }
       }
     }
-  }
   </script>
   
   <style scoped>

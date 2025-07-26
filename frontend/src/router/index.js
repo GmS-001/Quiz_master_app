@@ -3,7 +3,12 @@ import store from '../store'
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue' 
 import AdminDashboardView from '../views/AdminDashboardView.vue'
-import ChapterManagerView from '../views/ChapterManagerView.vue';
+import ChapterManagerView from '../views/ChapterManagerView.vue'
+import QuestionManagerView from '../views/QuestionManagerView.vue'
+import RegisterView from '../views/RegisterView.vue'
+import UserDashboardView from '../views/UserDashboardView.vue'
+import QuizAttemptView from '../views/QuizAttemptView.vue'
+import ResultsView from '../views/ResultsView.vue'
 
 const routes = [
   {
@@ -26,7 +31,36 @@ const routes = [
     name: 'chapter-manager',
     component: ChapterManagerView,
     meta: { requiresAuth: true }
-}
+  },
+  {
+    path: '/quizzes/:quizId/questions',
+    name: 'question-manager',
+    component: QuestionManagerView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: RegisterView
+  },
+  {
+    path: '/user-dashboard',
+    name: 'user-dashboard',
+    component: UserDashboardView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/attempt/quiz/:quizId',
+    name: 'quiz-attempt',
+    component: QuizAttemptView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/result',
+    name: 'quiz-result',
+    component: ResultsView,
+    meta: { requiresAuth: true }
+  }
 ]
 
 const router = createRouter({

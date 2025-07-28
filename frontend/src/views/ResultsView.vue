@@ -97,27 +97,52 @@
       }
     },
     methods: {
+      getOptionText(breakdownItem, optionNumber) {
+      // This is a helper to display the selected option number.
+      if (!optionNumber) return 'Not Answered';
+
+      // This part needs the full question details to show the text.
+      // For now, we will just show the option number.
+      // We will improve this later.
+      if(breakdownItem['option' + optionNumber]){
+          return breakdownItem['option' + optionNumber];
+      }
+      return `Option ${optionNumber}`;
+    },
+    async fetchPastResult(scoreId) {
+      try {
+        const response = await api.get(`/result/${scoreId}`);
+        this.$store.commit('SET_LATEST_RESULT', response.data);
+      } catch (error) {
+        console.error("Failed to fetch past result:", error);
+        this.$router.push('/user-dashboard');
+      }
+    },
       async fetchQuestionDetailsForBreakdown() {
         // We need the full question details to display the option text
         const questionIds = this.result.breakdown.map(b => b.question_id);
         // This assumes a new backend endpoint. Let's create it.
         // For now, let's just use the answer number. We will enhance this.
       },
-      getOptionText(breakdownItem, optionNumber) {
-        // This is a placeholder. A real implementation would fetch question details.
-        // For now, we return the number. We'll improve this.
-        if(this.questionsMap[breakdownItem.question_id]) {
-          return this.questionsMap[breakdownItem.question_id]['option' + optionNumber];
-        }
-        return `Option ${optionNumber}`;
-      }
-    },
-    created() {
-      if (!this.$store.state.latestResult) {
+      async fetchPastResult(scoreId) {
+      try {
+        const response = await api.get(`/result/${scoreId}`);
+        this.$store.commit('SET_LATEST_RESULT', response.data);
+      } catch (error) {
+        console.error("Failed to fetch past result:", error);
         this.$router.push('/user-dashboard');
-      } else {
-        // We can pre-fetch question details here if we want to show text instead of numbers.
       }
     }
+  },
+    async created() {
+    const scoreId = this.$route.params.scoreId;
+    if (scoreId) {
+      // If a scoreId is in the URL, fetch that specific result
+      await this.fetchPastResult(scoreId);
+    } else if (!this.$store.state.latestResult) {
+      // If there's no ID and no result in the store, redirect away
+      this.$router.push('/user-dashboard');
+    }
+  }
   }
   </script>

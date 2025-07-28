@@ -27,7 +27,7 @@ const routes = [
     meta: { requiresAuth: true } 
   },
   {
-    path: '/subjects/:subjectId/chapters', // The :subjectId is a dynamic parameter
+    path: '/subjects/:subjectId/chapters', 
     name: 'chapter-manager',
     component: ChapterManagerView,
     meta: { requiresAuth: true }
@@ -56,7 +56,7 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/result',
+    path: '/result/:scoreId?', 
     name: 'quiz-result',
     component: ResultsView,
     meta: { requiresAuth: true }

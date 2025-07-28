@@ -81,6 +81,6 @@ class Score(db.Model):
     total_questions = db.Column(db.Integer, nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     tab_switches = db.Column(db.Integer, default=0)
-
+    results_breakdown = db.Column(db.JSON, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)

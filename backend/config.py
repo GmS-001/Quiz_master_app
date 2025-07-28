@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from celery.schedules import crontab
+from datetime import timedelta
 
 load_dotenv() # This line explicitly finds and loads the .env file
 basedir = os.path.abspath(os.path.dirname(__file__)) # Gets the absolute path of the directory where this file is located.
@@ -11,7 +12,8 @@ class Config:
     # inside the 'backend' directory.
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_SECRET_KEY = 'super-secret-key-change-it-later' # Change this key later!
+    JWT_SECRET_KEY = 'super-secret-key-change-it-later'
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     # Celery Configuration
     CELERY_BROKER_URL = 'redis://localhost:6379/0'
     CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'

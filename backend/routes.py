@@ -7,6 +7,8 @@ from .models import User
 from .extensions import db
 from flask_jwt_extended import create_access_token
 from datetime import date
+from .extensions import redis_client
+import json
 
 # Why use a Blueprint? It helps in organizing the application into
 # distinct components. We can have one blueprint for authentication,
@@ -99,6 +101,7 @@ def create_subject():
     new_subject = Subject(name=data['name'], description=data.get('description'))
     db.session.add(new_subject)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Subject created successfully'}), 201
 
 @auth_bp.route('/subjects', methods=['GET'])
@@ -117,6 +120,7 @@ def update_subject(subject_id):
     subject.name = data.get('name', subject.name)
     subject.description = data.get('description', subject.description)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'id': subject.id, 'name': subject.name, 'description': subject.description})
 
 @auth_bp.route('/subjects/<int:subject_id>', methods=['DELETE'])
@@ -125,6 +129,7 @@ def delete_subject(subject_id):
     subject = Subject.query.get_or_404(subject_id)
     db.session.delete(subject)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Subject deleted successfully'})
 
 
@@ -143,6 +148,7 @@ def create_chapter(subject_id):
     )
     db.session.add(new_chapter)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Chapter created successfully'}), 201
 
 @auth_bp.route('/subjects/<int:subject_id>/chapters', methods=['GET'])
@@ -161,6 +167,7 @@ def update_chapter(chapter_id):
     chapter.name = data.get('name', chapter.name)
     chapter.description = data.get('description', chapter.description)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Chapter updated successfully'})
 
 @auth_bp.route('/chapters/<int:chapter_id>', methods=['DELETE'])
@@ -169,6 +176,7 @@ def delete_chapter(chapter_id):
     chapter = Chapter.query.get_or_404(chapter_id)
     db.session.delete(chapter)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Chapter deleted successfully'})
 
 @auth_bp.route('/subjects/<int:subject_id>', methods=['GET'])
@@ -192,6 +200,7 @@ def create_quiz(chapter_id):
     )
     db.session.add(new_quiz)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Quiz created successfully'}), 201
 
 
@@ -217,6 +226,7 @@ def update_quiz(quiz_id):
     quiz.time_duration = data.get('time_duration', quiz.time_duration)
     quiz.remarks = data.get('remarks', quiz.remarks)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Quiz updated successfully'})
 
 
@@ -226,6 +236,7 @@ def delete_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
     db.session.delete(quiz)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Quiz deleted successfully'})
 
 
@@ -247,6 +258,7 @@ def create_question(quiz_id):
     )
     db.session.add(new_question)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Question created successfully'}), 201
 
 
@@ -281,6 +293,7 @@ def update_question(question_id):
     question.option4 = data.get('option4', question.option4)
     question.correct_option = data.get('correct_option', question.correct_option)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Question updated successfully'})
 
 
@@ -290,6 +303,7 @@ def delete_question(question_id):
     question = Question.query.get_or_404(question_id)
     db.session.delete(question)
     db.session.commit()
+    redis_client.delete("content-tree")
     return jsonify({'message': 'Question deleted successfully'})
 
 
@@ -325,6 +339,12 @@ def get_content_tree():
     Returns a nested structure of all subjects, chapters, and quizzes.
     This is more efficient than making separate API calls for each level.
     """
+    cache_key = "content-tree"
+    cached_data = redis_client.get(cache_key)
+
+    if cached_data:
+        # If data is in the cache, return it directly
+        return jsonify(json.loads(cached_data))
     subjects = Subject.query.order_by(Subject.name).all()
     content_tree = []
     for subject in subjects:
@@ -348,6 +368,8 @@ def get_content_tree():
                 chapter_data['quizzes'].append(quiz_data)
             subject_data['chapters'].append(chapter_data)
         content_tree.append(subject_data)
+        # Store the fresh data in the cache for 10 minutes (600 seconds)
+    redis_client.setex(cache_key, 600, json.dumps(content_tree))
         
     return jsonify(content_tree)
 
@@ -382,13 +404,13 @@ def submit_quiz(quiz_id):
             'is_correct': is_correct
         })
 
-    # Save the score to the database
     new_score = Score(
         score_achieved=score,
         total_questions=len(questions),
         tab_switches=tab_switches,
         user_id=user_id,
-        quiz_id=quiz_id
+        quiz_id=quiz_id,
+        results_breakdown=results_breakdown
     )
     db.session.add(new_score)
     db.session.commit()
@@ -409,3 +431,71 @@ def submit_quiz(quiz_id):
 
     # Return the detailed results to the frontend
     return jsonify(result_payload)
+
+
+@auth_bp.route('/export-csv', methods=['POST'])
+@jwt_required()
+def trigger_csv_export():
+    user_id = int(get_jwt_identity())
+    from .celery_worker import generate_csv_report
+    task = generate_csv_report.delay(user_id)
+    return jsonify({'task_id': task.id}), 202
+
+@auth_bp.route('/task-status/<task_id>', methods=['GET'])
+@jwt_required()
+def get_task_status(task_id):
+    from . import celery_app
+    task = celery_app.AsyncResult(task_id)
+
+    if task.state == 'SUCCESS':
+        response = {
+            'state': task.state,
+            'result': task.result, # The CSV data string
+            'status': 'Task completed!'
+        }
+    elif task.state == 'FAILURE':
+        response = {
+            'state': task.state,
+            'status': str(task.info) # The error message
+        }
+    else:
+        # This covers 'PENDING' and other states
+        response = {
+            'state': task.state,
+            'status': 'In progress...'
+        }
+    return jsonify(response)
+
+
+@auth_bp.route('/scores/history', methods=['GET'])
+@jwt_required()
+def get_score_history():
+    user_id = int(get_jwt_identity())
+    scores = Score.query.filter_by(user_id=user_id).order_by(Score.timestamp.desc()).all()
+    
+    history_list = []
+    for score in scores:
+        history_list.append({
+            'score_id': score.id,
+            'quiz_remarks': score.quiz.remarks,
+            'subject_name': score.quiz.chapter.subject.name,
+            'score_achieved': score.score_achieved,
+            'total_questions': score.total_questions,
+            'timestamp': score.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    return jsonify(history_list)
+
+@auth_bp.route('/result/<int:score_id>', methods=['GET'])
+@jwt_required()
+def get_past_result(score_id):
+    user_id = int(get_jwt_identity())
+    score = Score.query.filter_by(id=score_id, user_id=user_id).first_or_404()
+
+    return jsonify({
+        'score_id': score.id,
+        'score_achieved': score.score_achieved,
+        'total_questions': score.total_questions,
+        'tab_switches': score.tab_switches,
+        'breakdown': score.results_breakdown
+    })

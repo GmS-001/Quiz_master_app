@@ -39,13 +39,13 @@
           <div v-for="(item, index) in result.breakdown" :key="item.question_id" class="card mb-3">
             <div class="card-body">
               <p><strong>Q{{ index + 1 }}: {{ item.question_statement }}</strong></p>
-              <p :class="item.is_correct ? 'text-success' : 'text-danger'">
-                <i class="bi" :class="item.is_correct ? 'bi-check-circle-fill' : 'bi-x-circle-fill'"></i>
-                Your Answer: {{ getOptionText(item, item.user_answer) || 'Not Answered' }}
-              </p>
-              <p v-if="!item.is_correct" class="text-success">
-                Correct Answer: {{ getOptionText(item, item.correct_answer) }}
-              </p>
+              <ul class="list-group">
+                <li v-for="i in 4" :key="i" class="list-group-item" :class="getOptionClass(item, i)">
+                  {{ item['option' + i] }}
+                  <span v-if="item.correct_answer === i" class="badge bg-success float-end">Correct Answer</span>
+                  <span v-if="!item.is_correct && item.user_answer === i" class="badge bg-danger float-end">Your Answer</span>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -97,17 +97,22 @@
       }
     },
     methods: {
-      getOptionText(breakdownItem, optionNumber) {
-      // This is a helper to display the selected option number.
-      if (!optionNumber) return 'Not Answered';
+      getOptionClass(item, optionIndex) {
+      const isCorrect = item.correct_answer === optionIndex;
+      const isUserAnswer = item.user_answer === optionIndex;
 
-      // This part needs the full question details to show the text.
-      // For now, we will just show the option number.
-      // We will improve this later.
-      if(breakdownItem['option' + optionNumber]){
-          return breakdownItem['option' + optionNumber];
+      if (isCorrect) {
+        return 'list-group-item-success';
       }
-      return `Option ${optionNumber}`;
+      if (isUserAnswer && !isCorrect) {
+        return 'list-group-item-danger'; 
+      }
+      return ''; // Default style for other options
+    },
+      getOptionText(breakdownItem, optionNumber) {
+      if (!optionNumber) return 'Not Answered';
+      // Now we can access the option text directly from the breakdown item
+      return breakdownItem['option' + optionNumber];
     },
     async fetchPastResult(scoreId) {
       try {

@@ -397,12 +397,16 @@ def submit_quiz(quiz_id):
             is_correct = True
 
         results_breakdown.append({
-            'question_id': question.id,
-            'question_statement': question.question_statement,
-            'user_answer': user_answer,
-            'correct_answer': question.correct_option,
-            'is_correct': is_correct
-        })
+        'question_id': question.id,
+        'question_statement': question.question_statement,
+        'option1': question.option1, 
+        'option2': question.option2, 
+        'option3': question.option3, 
+        'option4': question.option4, 
+        'user_answer': user_answer,
+        'correct_answer': question.correct_option,
+        'is_correct': is_correct
+    })
 
     new_score = Score(
         score_achieved=score,
@@ -486,16 +490,52 @@ def get_score_history():
         
     return jsonify(history_list)
 
+
 @auth_bp.route('/result/<int:score_id>', methods=['GET'])
 @jwt_required()
 def get_past_result(score_id):
     user_id = int(get_jwt_identity())
     score = Score.query.filter_by(id=score_id, user_id=user_id).first_or_404()
 
+    # Reconstruct the breakdown with full question details
+    detailed_breakdown = []
+    if score.results_breakdown:
+        for item in score.results_breakdown:
+            question = Question.query.get(item['question_id'])
+            if question:
+                item['option1'] = question.option1
+                item['option2'] = question.option2
+                item['option3'] = question.option3
+                item['option4'] = question.option4
+            detailed_breakdown.append(item)
+
     return jsonify({
         'score_id': score.id,
         'score_achieved': score.score_achieved,
         'total_questions': score.total_questions,
         'tab_switches': score.tab_switches,
-        'breakdown': score.results_breakdown
+        'breakdown': detailed_breakdown
+    })
+
+@auth_bp.route('/admin/summary-stats', methods=['GET'])
+@admin_required()
+def get_summary_stats():
+    total_users = User.query.filter_by(is_admin=False).count()
+    total_quizzes_taken = Score.query.count()
+    
+    # Calculate score distribution for a chart
+    scores = [s.score_achieved / s.total_questions for s in Score.query.all() if s.total_questions > 0]
+    
+    high_scores = len([s for s in scores if s >= 0.8]) # 80% or higher
+    medium_scores = len([s for s in scores if 0.5 <= s < 0.8]) # 50% - 79%
+    low_scores = len([s for s in scores if s < 0.5]) # Below 50%
+    
+    return jsonify({
+        'total_users': total_users,
+        'total_quizzes_taken': total_quizzes_taken,
+        'score_distribution': {
+            'high': high_scores,
+            'medium': medium_scores,
+            'low': low_scores
+        }
     })

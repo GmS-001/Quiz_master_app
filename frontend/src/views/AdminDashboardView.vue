@@ -5,6 +5,35 @@
       <button @click="handleLogout" class="btn btn-danger">Logout</button>
     </div>
     
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-center h-100">
+          <div class="card-body">
+            <h5 class="card-title">Total Users</h5>
+            <p class="display-4">{{ stats.total_users }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-center h-100">
+          <div class="card-body">
+            <h5 class="card-title">Total Quizzes Taken</h5>
+            <p class="display-4">{{ stats.total_quizzes_taken }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title text-center">Score Distribution</h5>
+            <div style="position: relative; height: 150px">
+              <Pie v-if="stats.score_distribution" :data="chartData" :options="chartOptions" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-body">
         <h5 class="card-title">Manage Subjects</h5>
@@ -70,19 +99,57 @@
 
 <script>
 import api from '../services/api';
-import { Modal } from 'bootstrap'; // Import Bootstrap's Modal component
+import { Modal } from 'bootstrap'; 
+import { Pie } from 'vue-chartjs';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
+
 
 export default {
   name: 'AdminDashboardView',
+  components: { Pie },
   data() {
     return {
       subjects: [],
       newSubject: { name: '', description: '' },
       editingSubject: { id: null, name: '', description: '' },
-      editModalInstance: null
+      editModalInstance: null,
+      stats: { // New state for stats
+        total_users: 0,
+        total_quizzes_taken: 0,
+        score_distribution: null
+      }
+    }
+  },
+  computed: {
+    chartData() {
+      if (!this.stats.score_distribution) return {};
+      return {
+        labels: ['High (>80%)', 'Medium (50-79%)', 'Low (<50%)'],
+        datasets: [{
+          backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+          data: [
+            this.stats.score_distribution.high,
+            this.stats.score_distribution.medium,
+            this.stats.score_distribution.low
+          ]
+        }]
+      }
+    },
+    chartOptions() {
+      return { responsive: true, maintainAspectRatio: false }
     }
   },
   methods: {
+    async fetchSummaryStats() {
+      try {
+        const response = await api.get('/admin/summary-stats');
+        this.stats = response.data;
+      } catch (error) {
+        console.error("Error fetching summary stats:", error);
+      }
+    },
     handleLogout() {
       this.$store.dispatch('logout');
       this.$router.push('/login');
@@ -128,6 +195,7 @@ export default {
   },
   created() {
     this.fetchSubjects();
+    this.fetchSummaryStats();
   }
 }
 </script>

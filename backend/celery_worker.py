@@ -6,7 +6,9 @@ import csv
 import io
 from . import celery_app
 from .extensions import db
-from datetime import datetime, timedelta # Import the celery_app from __init__.py
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+
 
 @celery_app.task
 def send_quiz_report_email(result_data):
@@ -87,3 +89,56 @@ def generate_csv_report(user_id):
         ])
 
     return output.getvalue()
+
+@celery_app.task
+def send_monthly_reports():
+    """Generates and emails a monthly activity report to each user."""
+    today = datetime.utcnow()
+    # Calculate the start and end of the previous month
+    end_of_last_month = today.replace(day=1) - timedelta(days=1)
+    start_of_last_month = end_of_last_month.replace(day=1)
+    
+    users = User.query.filter_by(is_admin=False).all()
+
+    for user in users:
+        scores = Score.query.filter(
+            Score.user_id == user.id,
+            Score.timestamp.between(start_of_last_month, today.replace(day=1))
+        ).all()
+
+        if not scores:
+            continue # Skip users with no activity
+
+        quizzes_taken = len(scores)
+        total_score = sum(s.score_achieved for s in scores)
+        total_possible = sum(s.total_questions for s in scores)
+        average_score = (total_score / total_possible * 100) if total_possible > 0 else 0
+
+        subject = f"Your Quiz Master Report for {start_of_last_month.strftime('%B %Y')}"
+        
+        # We build the report as an HTML string
+        html_body = f"""
+        <html>
+          <body>
+            <h2>Hi {user.full_name},</h2>
+            <p>Here is your activity summary for the month of {start_of_last_month.strftime('%B %Y')}:</p>
+            <ul>
+              <li><strong>Quizzes Taken:</strong> {quizzes_taken}</li>
+              <li><strong>Total Score:</strong> {total_score} / {total_possible}</li>
+              <li><strong>Average Score:</strong> {average_score:.2f}%</li>
+            </ul>
+            <p>Keep up the great work!</p>
+            <p>- The Quiz Master Team</p>
+          </body>
+        </html>
+        """
+        
+        msg = Message(subject,
+                      sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                      recipients=[user.username],
+                      html=html_body) # Use the 'html' parameter for HTML emails
+        
+        mail = current_app.extensions.get('mail')
+        mail.send(msg)
+
+    return f"Sent monthly reports to active users."

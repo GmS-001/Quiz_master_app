@@ -135,7 +135,7 @@
             } else {
             clearInterval(this.timerInterval);
             alert("Time's up!");
-            this.submitQuiz(true); // Auto-submit
+            this.submitQuiz(true); 
             }
         }, 1000);
         },

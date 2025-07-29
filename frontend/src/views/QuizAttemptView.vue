@@ -12,8 +12,7 @@
               <h4>{{ quiz.remarks }}</h4>
               <div class="d-flex align-items-center">
                 <span class="badge bg-warning me-3" v-if="tabSwitches > 0">Tab Switches: {{ tabSwitches }}</span>
-                <i class="bi bi-info-circle-fill fs-4 me-3" style="cursor: pointer;" data-bs-toggle="modal"
-                  data-bs-target="#rulesModal"></i>
+                <i class="bi bi-info-circle-fill fs-4 me-3" style="cursor: pointer;" @click="showRulesModal"></i>
                 <div class="timer px-3 py-2 rounded" :class="{ 'timer-warning': timeRemaining < 300 }">
                   <i class="bi bi-clock"></i> {{ formattedTime }}
                 </div>
@@ -70,19 +69,17 @@
       </div>
     </div>
 
-    <div class="modal fade" id="rulesModal" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Quiz Rules</h5><button type="button" class="btn-close" data-bs-dismiss="modal"
-              aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p>1. Do not switch tabs or minimize the browser.</p>
-            <p>2. Keep your camera on throughout the quiz.</p>
-            <p>3. Do not copy or paste content.</p>
-            <p>4. Submit the quiz before the timer runs out.</p>
-          </div>
+    <div v-if="isRulesModalVisible" class="modal-overlay" @click="hideRulesModal">
+      <div class="modal-content-custom" @click.stop>
+        <div class="modal-header-custom">
+          <h5 class="modal-title">Quiz Rules</h5>
+          <button type="button" class="btn-close" @click="hideRulesModal"></button>
+        </div>
+        <div class="modal-body-custom">
+          <p>1. Do not switch tabs or minimize the browser.</p>
+          <p>2. Keep your camera on throughout the quiz.</p>
+          <p>3. Do not copy or paste content.</p>
+          <p>4. Submit the quiz before the timer runs out.</p>
         </div>
       </div>
     </div>
@@ -91,7 +88,6 @@
 
 <script>
 import api from '../services/api';
-import { Modal } from 'bootstrap';
 
 export default {
   name: 'QuizAttemptView',
@@ -108,7 +104,8 @@ export default {
       questionStates: {},
       tabSwitches: 0,
       cameraStream: null,
-      rulesModalInstance: null
+      rulesModalInstance: null,
+      isRulesModalVisible: false
     }
   },
   computed: {
@@ -137,18 +134,26 @@ export default {
       }
     },
     startTimer() {
-      const [hours, minutes] = this.quiz.time_duration.split(':').map(Number);
-      this.timeRemaining = hours * 3600 + minutes * 60;
-      this.timerInterval = setInterval(() => {
-        if (this.timeRemaining > 0) {
-          this.timeRemaining--;
-        } else {
-          clearInterval(this.timerInterval);
-          alert("Time's up!");
-          this.submitQuiz(true); // Auto-submit
-        }
-      }, 1000);
-    },
+    const [hours, minutes] = this.quiz.time_duration.split(':').map(Number);
+    const totalDuration = hours * 3600 + minutes * 60;
+    // If timeRemaining wasn't loaded from a refresh, start from the beginning.
+    // Otherwise, use the time that was loaded in the created() hook.
+    if (this.timeRemaining === 0) {
+      this.timeRemaining = totalDuration;
+    }
+    this.timerInterval = setInterval(() => {
+      if (this.timeRemaining > 0) {
+        this.timeRemaining--;
+        sessionStorage.setItem(`quiz_${this.quizId}_time`, this.timeRemaining);
+      } else {
+        clearInterval(this.timerInterval);
+        sessionStorage.removeItem(`quiz_${this.quizId}_time`);
+        sessionStorage.removeItem(`quiz_${this.quizId}_answers`);
+        alert("Time's up!");
+        this.submitQuiz(true);
+      }
+    }, 1000);
+  },
     async startCamera() {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -169,16 +174,19 @@ export default {
     },
     async submitQuiz(isAutoSubmit = false) {
       const confirmSubmit = isAutoSubmit || confirm('Are you sure you want to submit the quiz?');
+      const payload = {
+        answers: this.userAnswers,
+        tabSwitches: this.tabSwitches,
+        timeTaken: (this.quiz.time_duration.split(':').map(Number)[1] * 60) - this.timeRemaining // Calculate elapsed seconds
+      };
       if (confirmSubmit) {
         try {
-          const payload = {
-            answers: this.userAnswers,
-            tabSwitches: this.tabSwitches,
-          };
+          sessionStorage.removeItem(`quiz_${this.quizId}_answers`);
+          const payload = { answers: this.userAnswers, tabSwitches: this.tabSwitches };
           const response = await api.post(`/quizzes/${this.quizId}/submit`, payload);
-
-          // Save results to the store and navigate
+          
           this.$store.commit('SET_LATEST_RESULT', response.data);
+          sessionStorage.removeItem(`quiz_${this.quizId}_time`); // Clean up on submit
           this.$router.push('/result');
 
         } catch (error) {
@@ -212,6 +220,7 @@ export default {
     markAsAnswered() {
       const qId = this.currentQuestion.id;
       this.questionStates[qId] = 'answered';
+      sessionStorage.setItem(`quiz_${this.quizId}_answers`, JSON.stringify(this.userAnswers));
     },
     toggleReview() {
       const qId = this.currentQuestion.id;
@@ -234,11 +243,38 @@ export default {
       if (this.rulesModalInstance) {
         this.rulesModalInstance.hide();
       }
+    },
+    showRulesModal() {
+      this.isRulesModalVisible = true;
+    },
+    hideRulesModal() {
+      this.isRulesModalVisible = false;
     }
   },
   async created() {
     await this.fetchQuizData();
+    
     if (this.quiz && this.questions.length > 0) {
+      // Load saved answers from sessionStorage
+      const savedAnswers = sessionStorage.getItem(`quiz_${this.quizId}_answers`);
+      if (savedAnswers) {
+        this.userAnswers = JSON.parse(savedAnswers);
+        
+        // THIS IS THE NEW, CRITICAL PART:
+        // Rebuild the questionStates based on the loaded answers.
+        for (const questionId in this.userAnswers) {
+          if (this.userAnswers[questionId] !== null) {
+            this.questionStates[questionId] = 'answered';
+          }
+        }
+      }
+
+      // Load saved time from sessionStorage
+      const savedTime = sessionStorage.getItem(`quiz_${this.quizId}_time`);
+      if (savedTime) {
+        this.timeRemaining = parseInt(savedTime, 10);
+      }
+      
       this.startTimer();
       this.updateQuestionState(0);
     }
@@ -246,7 +282,6 @@ export default {
   mounted() {
     this.startCamera();
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    this.rulesModalInstance = new Modal(document.getElementById('rulesModal'));
   },
   unmounted() {
     clearInterval(this.timerInterval);
@@ -261,35 +296,15 @@ export default {
 
 
 <style scoped>
-.quiz-background {
-  background: linear-gradient(45deg, #4c68d7, #6a349d);
-  min-height: 100vh;
-  width: 100vw;
-  position: fixed;
-  top: 0;
-  left: 0;
-  overflow-y: auto;
-  user-select: none;
-  /* Disables text selection */
-}
+/* Main background and existing styles */
+.quiz-background { background: linear-gradient(45deg, #4c68d7, #6a349d); min-height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; overflow-y: auto; user-select: none; }
+.timer { background-color: rgba(0, 0, 0, 0.2); font-size: 1.2rem; font-weight: bold; }
+.timer-warning { background-color: #dc3545; }
+.question-palette { display: flex; flex-wrap: wrap; gap: 5px; }
+.list-group-item { cursor: pointer; }
 
-.timer {
-  background-color: rgba(0, 0, 0, 0.2);
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-
-.timer-warning {
-  background-color: #dc3545;
-}
-
-.question-palette {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.list-group-item {
-  cursor: pointer;
-}
+/* Styles for our new custom modal */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1050; }
+.modal-content-custom { background-color: white; padding: 20px; border-radius: 0.5rem; width: 500px; max-width: 90%; }
+.modal-header-custom { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px; }
 </style>

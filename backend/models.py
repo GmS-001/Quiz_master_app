@@ -84,3 +84,4 @@ class Score(db.Model):
     results_breakdown = db.Column(db.JSON, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
+    time_taken = db.Column(db.Integer, nullable=True)

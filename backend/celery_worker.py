@@ -6,7 +6,7 @@ import csv
 import io
 from . import celery_app
 from .extensions import db
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 
@@ -93,7 +93,7 @@ def generate_csv_report(user_id):
 @celery_app.task
 def send_monthly_reports():
     """Generates and emails a monthly activity report to each user."""
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     # Calculate the start and end of the previous month
     end_of_last_month = today.replace(day=1) - timedelta(days=1)
     start_of_last_month = end_of_last_month.replace(day=1)

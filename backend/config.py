@@ -21,7 +21,7 @@ class Config:
         'send-monthly-reports': {
         'task': 'backend.celery_worker.send_monthly_reports',
         # Runs at 8:00 AM on the first day of every month
-        'schedule': crontab(minute='*'),
+        'schedule': crontab(day_of_month=1, hour=8, minute=0),
         },
         'send-daily-reminders': {
             'task': 'backend.celery_worker.send_daily_reminders',

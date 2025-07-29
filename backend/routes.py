@@ -9,7 +9,7 @@ from flask_jwt_extended import create_access_token
 from datetime import date
 from .extensions import redis_client
 import json
-
+from sqlalchemy import func
 # Why use a Blueprint? It helps in organizing the application into
 # distinct components. We can have one blueprint for authentication,
 # one for quizzes, etc., keeping our code clean and modular.
@@ -380,9 +380,9 @@ def get_content_tree():
 def submit_quiz(quiz_id):
     user_id = int(get_jwt_identity())
     data = request.get_json()
-    user_answers = data.get('answers') # e.g., {'question_id': 'selected_option'}
+    user_answers = data.get('answers') 
     tab_switches = data.get('tabSwitches', 0)
-
+    time_taken = data.get('timeTaken')
     quiz = Quiz.query.get_or_404(quiz_id)
     questions = quiz.questions
 
@@ -414,6 +414,7 @@ def submit_quiz(quiz_id):
         tab_switches=tab_switches,
         user_id=user_id,
         quiz_id=quiz_id,
+        time_taken=time_taken,
         results_breakdown=results_breakdown
     )
     db.session.add(new_score)
@@ -427,6 +428,7 @@ def submit_quiz(quiz_id):
         'score_achieved': score,
         'total_questions': len(questions),
         'tab_switches': tab_switches,
+        'time_taken': time_taken, 
         'breakdown': results_breakdown
     }
     from .celery_worker import send_quiz_report_email
@@ -511,6 +513,8 @@ def get_past_result(score_id):
 
     return jsonify({
         'score_id': score.id,
+        'quiz_id': score.quiz_id,
+        'time_taken': score.time_taken,
         'score_achieved': score.score_achieved,
         'total_questions': score.total_questions,
         'tab_switches': score.tab_switches,
@@ -538,4 +542,30 @@ def get_summary_stats():
             'medium': medium_scores,
             'low': low_scores
         }
+    })
+
+
+
+@auth_bp.route('/quiz/<int:quiz_id>/time-stats', methods=['GET'])
+@jwt_required()
+def get_quiz_time_stats(quiz_id):
+    # Calculate average time for this quiz
+    avg_time = db.session.query(func.avg(Score.time_taken)).filter(Score.quiz_id == quiz_id).scalar()
+
+    # Create a subquery to count the total number of questions for the quiz
+    question_count_subquery = db.session.query(func.count(Question.id)).filter(Question.quiz_id == quiz_id).scalar_subquery()
+
+    # Find the fastest time for a perfect score using the subquery
+    fastest_perfect_time = db.session.query(func.min(Score.time_taken))\
+        .filter(Score.quiz_id == quiz_id)\
+        .filter(Score.score_achieved == question_count_subquery)\
+        .scalar()
+
+    # Handle cases where queries return None and ensure types are correct
+    avg_time_val = float(avg_time) if avg_time is not None else 0
+    fastest_perfect_val = fastest_perfect_time if fastest_perfect_time is not None else 0
+
+    return jsonify({
+        'average_time': avg_time_val,
+        'fastest_perfect_time': fastest_perfect_val
     })

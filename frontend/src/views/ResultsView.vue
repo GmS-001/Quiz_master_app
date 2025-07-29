@@ -33,6 +33,17 @@
             </div>
           </div>
         </div>
+
+        <div class="col-md-12 mt-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Time Analysis</h5>
+                    <div style="position: relative; height: 250px">
+                        <Bar v-if="timeStats" :data="timeChartData" :options="{ responsive: true, maintainAspectRatio: false }" />
+                    </div>
+                </div>
+            </div>
+        </div>
   
         <div class="text-start">
           <h3 class="mb-4">Answer Breakdown</h3>
@@ -56,18 +67,19 @@
   </template>
   
   <script>
-  import { Doughnut } from 'vue-chartjs'
-  import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+  import { Doughnut, Bar } from 'vue-chartjs'
+  import { Chart as ChartJS, ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
   import api from '../services/api';
   
-  ChartJS.register(ArcElement, Tooltip, Legend)
+  ChartJS.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
   
   export default {
     name: 'ResultsView',
-    components: { Doughnut },
+    components: { Doughnut , Bar },
     data() {
       return {
-        questionsMap: {} // To store question details for answer text lookup
+        questionsMap: {} ,
+        timeStats: null
       }
     },
     computed: {
@@ -87,6 +99,17 @@
               ]
             }
           ]
+        }
+      },
+      timeChartData() {
+        if (!this.result || !this.timeStats) return {};
+        return {
+          labels: ['Your Time', 'Average Time', 'Fastest Perfect'],
+          datasets: [{
+            label: 'Time in Seconds',
+            backgroundColor: ['#0d6efd', '#6c757d', '#198754'],
+            data: [this.result.time_taken, this.timeStats.average_time, this.timeStats.fastest_perfect_time]
+          }]
         }
       },
       chartOptions() {
@@ -137,17 +160,27 @@
         console.error("Failed to fetch past result:", error);
         this.$router.push('/user-dashboard');
       }
+    },
+    async fetchTimeStats() {
+      if (this.result) {
+        try {
+          const response = await api.get(`/quiz/${this.result.quiz_id}/time-stats`);
+          this.timeStats = response.data;
+        } catch (error) {
+          console.error("Failed to fetch time stats:", error);
+        }
+      }
     }
   },
-    async created() {
+  async created() {
     const scoreId = this.$route.params.scoreId;
     if (scoreId) {
-      // If a scoreId is in the URL, fetch that specific result
       await this.fetchPastResult(scoreId);
     } else if (!this.$store.state.latestResult) {
-      // If there's no ID and no result in the store, redirect away
       this.$router.push('/user-dashboard');
     }
+    // After getting the result, fetch the time stats
+    this.fetchTimeStats();
   }
-  }
-  </script>
+}
+</script>

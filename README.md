@@ -2,7 +2,6 @@
 
 Quiz Master is a feature-rich, full-stack web application designed for online exam preparation. It features a modern, decoupled architecture with a Vue.js single-page application (SPA) frontend and a Flask RESTful API backend. The platform supports two distinct roles: an **Admin** with complete control over quiz content and user management, and **Users** who can register, take quizzes in a proctored environment, and track their performance over time.
 
-![Quiz Attempt Screenshot](https://i.imgur.com/uR1Bfpl.png)
 
 ## Key Features
 

@@ -2,6 +2,7 @@
     <div class="login-container">
       <div class="card shadow-sm">
         <div class="card-body">
+          <h1 class="text-danger">VERSION 2</h1>
           <h3 class="card-title text-center mb-4">Login</h3>
           <form @submit.prevent="handleLogin">
             <div class="mb-3">

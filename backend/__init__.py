@@ -2,7 +2,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from .config import Config
-from .extensions import db, migrate, jwt,mail # Import from extensions.py
+from .extensions import db, migrate, jwt,mail
 from .celery_init import celery_init_app
 import click
 
@@ -16,13 +16,8 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     mail.init_app(app)
     CORS(app)
-    
-    # Import and register models
-    from . import models
-    # Import and register blueprints
     from .routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/api')
-    # A simple test route
     @app.route('/')
     def index():
         return jsonify({'message': 'Welcome to the Quiz Master API!'})

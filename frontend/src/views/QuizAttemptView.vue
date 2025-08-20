@@ -174,19 +174,19 @@ export default {
     },
     async submitQuiz(isAutoSubmit = false) {
       const confirmSubmit = isAutoSubmit || confirm('Are you sure you want to submit the quiz?');
-      const payload = {
-        answers: this.userAnswers,
-        tabSwitches: this.tabSwitches,
-        timeTaken: (this.quiz.time_duration.split(':').map(Number)[1] * 60) - this.timeRemaining // Calculate elapsed seconds
-      };
+      
       if (confirmSubmit) {
         try {
           sessionStorage.removeItem(`quiz_${this.quizId}_answers`);
-          const payload = { answers: this.userAnswers, tabSwitches: this.tabSwitches };
+          const payload = {
+            answers: this.userAnswers,
+            tabSwitches: this.tabSwitches,
+            timeTaken: (this.quiz.time_duration.split(':').map(Number)[1] * 60) - this.timeRemaining
+          };
           const response = await api.post(`/quizzes/${this.quizId}/submit`, payload);
           
           this.$store.commit('SET_LATEST_RESULT', response.data);
-          sessionStorage.removeItem(`quiz_${this.quizId}_time`); // Clean up on submit
+          sessionStorage.removeItem(`quiz_${this.quizId}_time`);
           this.$router.push('/result');
 
         } catch (error) {
@@ -259,9 +259,6 @@ export default {
       const savedAnswers = sessionStorage.getItem(`quiz_${this.quizId}_answers`);
       if (savedAnswers) {
         this.userAnswers = JSON.parse(savedAnswers);
-        
-        // THIS IS THE NEW, CRITICAL PART:
-        // Rebuild the questionStates based on the loaded answers.
         for (const questionId in this.userAnswers) {
           if (this.userAnswers[questionId] !== null) {
             this.questionStates[questionId] = 'answered';
@@ -269,7 +266,6 @@ export default {
         }
       }
 
-      // Load saved time from sessionStorage
       const savedTime = sessionStorage.getItem(`quiz_${this.quizId}_time`);
       if (savedTime) {
         this.timeRemaining = parseInt(savedTime, 10);
@@ -296,7 +292,6 @@ export default {
 
 
 <style scoped>
-/* Main background and existing styles */
 .quiz-background { background: linear-gradient(45deg, #4c68d7, #6a349d); min-height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; overflow-y: auto; user-select: none; }
 .timer { background-color: rgba(0, 0, 0, 0.2); font-size: 1.2rem; font-weight: bold; }
 .timer-warning { background-color: #dc3545; }

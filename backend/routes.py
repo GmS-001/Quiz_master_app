@@ -1,21 +1,17 @@
 # backend/routes.py
 from functools import wraps
-from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity, verify_jwt_in_request
-from .models import Subject, Chapter, Quiz, Question,Score # We'll need the Subject model
+from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity, verify_jwt_in_request, create_access_token
+from .models import Subject, Chapter, Quiz, Question,Score 
 from flask import Blueprint, request, jsonify
 from .models import User
-from .extensions import db
-from flask_jwt_extended import create_access_token
+from .extensions import db, redis_client
 from datetime import date
-from .extensions import redis_client
 import json
 from sqlalchemy import func
-# Why use a Blueprint? It helps in organizing the application into
-# distinct components. We can have one blueprint for authentication,
-# one for quizzes, etc., keeping our code clean and modular.
+
 auth_bp = Blueprint('auth', __name__)
 
-# This is our custom decorator to protect routes for admins only
+
 def admin_required():
     def wrapper(fn):
         @wraps(fn)
@@ -38,7 +34,7 @@ def login():
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({"msg": "Username and password are required"}), 400
+        return jsonify({"msg": "Username and password are required."}), 400
 
     user = User.query.filter_by(username=username).first()
 
@@ -50,19 +46,17 @@ def login():
         # and additional claims
         access_token = create_access_token(
             identity=str(user.id),
-            additional_claims=additional_claims
+            additional_claims = additional_claims
         )
-        return jsonify(access_token=access_token)
+        return jsonify(access_token =access_token)
 
-    return jsonify({"msg": "Bad username or password"}), 401
+    return jsonify({"msg": "Bad username or password."}), 401
 
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get('username') # This is the user's email
-
-    # Check if user (email) already exists
+    username = data.get('username') 
     if User.query.filter_by(username=username).first():
         return jsonify(message="An account with this email already exists"), 409
 
@@ -95,7 +89,7 @@ def register():
 
 
 @auth_bp.route('/subjects', methods=['POST'])
-@admin_required() # Protect this route so only admins can access it
+@admin_required()
 def create_subject():
     data = request.get_json()
     new_subject = Subject(name=data['name'], description=data.get('description'))
@@ -343,7 +337,6 @@ def get_content_tree():
     cached_data = redis_client.get(cache_key)
 
     if cached_data:
-        # If data is in the cache, return it directly
         return jsonify(json.loads(cached_data))
     subjects = Subject.query.order_by(Subject.name).all()
     content_tree = []
@@ -370,7 +363,6 @@ def get_content_tree():
         content_tree.append(subject_data)
         # Store the fresh data in the cache for 10 minutes (600 seconds)
     redis_client.setex(cache_key, 600, json.dumps(content_tree))
-        
     return jsonify(content_tree)
 
 

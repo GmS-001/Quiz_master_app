@@ -25,7 +25,7 @@
   </template>
   
   <script>
-    import { jwtDecode } from 'jwt-decode'; // Import the new library
+    import { jwtDecode } from 'jwt-decode'; 
 
     export default {
       name: 'LoginView',

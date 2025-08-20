@@ -20,7 +20,7 @@ const routes = [
     name: 'login',
     component: LoginView
   },
-  { // Add this new route object
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: AdminDashboardView,

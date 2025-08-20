@@ -14,14 +14,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = 'super-secret-key-change-it-later'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    # Celery Configuration
     CELERY_BROKER_URL = 'redis://localhost:6379/0'
     CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
     CELERY_BEAT_SCHEDULE = {
         'send-monthly-reports': {
-        'task': 'backend.celery_worker.send_monthly_reports',
-        # Runs at 8:00 AM on the first day of every month
-        'schedule': crontab(day_of_month=1, hour=8, minute=0),
+            'task': 'backend.celery_worker.send_monthly_reports',
+            # Runs at 8:00 AM on the first day of every month
+            'schedule': crontab(day_of_month=1, hour=8, minute=0),
         },
         'send-daily-reminders': {
             'task': 'backend.celery_worker.send_daily_reminders',

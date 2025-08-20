@@ -74,98 +74,97 @@
     </div>
   </template>
   
-  <script>
-import api from '../services/api';
-import { Modal } from 'bootstrap';
+<script>
+  import api from '../services/api';
+  import { Modal } from 'bootstrap';
 
-export default {
-  name: 'ChapterManagerView',
-  data() {
-    return {
-      subject: {},
-      chapters: [],
-      newChapter: { name: '', description: '' },
-      editingChapter: { id: null, name: '', description: '' },
-      subjectId: this.$route.params.subjectId,
-      selectedChapter: null,
-      quizzes: [],
-      newQuiz: { time_duration: '', remarks: '' },
-      editingQuiz: { id: null, time_duration: '', remarks: '' },
-      chapterEditModal: null,
-      quizEditModal: null,
-    }
-  },
-  methods: {
-    // --- Chapter Methods ---
-    async fetchSubjectDetails() {
-      const response = await api.get(`/subjects/${this.subjectId}`);
-      this.subject = response.data;
-    },
-    async fetchChapters() {
-      const response = await api.get(`/subjects/${this.subjectId}/chapters`);
-      this.chapters = response.data;
-    },
-    async addChapter() {
-      await api.post(`/subjects/${this.subjectId}/chapters`, this.newChapter);
-      this.newChapter = { name: '', description: '' };
-      await this.fetchChapters();
-    },
-    async deleteChapter(chapterId) {
-      if (confirm('Are you sure? This will delete the chapter and all its quizzes.')) {
-        await api.delete(`/chapters/${chapterId}`);
-        await this.fetchChapters();
-        this.selectedChapter = null;
+  export default {
+    name: 'ChapterManagerView',
+    data() {
+      return {
+        subject: {},
+        chapters: [],
+        newChapter: { name: '', description: '' },
+        editingChapter: { id: null, name: '', description: '' },
+        subjectId: this.$route.params.subjectId,
+        selectedChapter: null,
+        quizzes: [],
+        newQuiz: { time_duration: '', remarks: '' },
+        editingQuiz: { id: null, time_duration: '', remarks: '' },
+        chapterEditModal: null,
+        quizEditModal: null,
       }
     },
-    openChapterEditModal(chapter) {
-      this.editingChapter = { ...chapter };
-      this.chapterEditModal.show();
-    },
-    async updateChapter() {
-      await api.put(`/chapters/${this.editingChapter.id}`, this.editingChapter);
-      this.chapterEditModal.hide();
-      await this.fetchChapters();
-    },
-    // --- Quiz Methods ---
-    async selectChapter(chapter) {
-      this.selectedChapter = chapter;
-      await this.fetchQuizzes();
-    },
-    async fetchQuizzes() {
-      if (!this.selectedChapter) return;
-      const response = await api.get(`/chapters/${this.selectedChapter.id}/quizzes`);
-      this.quizzes = response.data;
-    },
-    async addQuiz() {
-      if (!this.selectedChapter) return;
-      await api.post(`/chapters/${this.selectedChapter.id}/quizzes`, this.newQuiz);
-      this.newQuiz = { time_duration: '', remarks: '' };
-      await this.fetchQuizzes();
-    },
-    async deleteQuiz(quizId) {
-      if (confirm('Are you sure?')) {
-        await api.delete(`/quizzes/${quizId}`);
+    methods: {
+      async fetchSubjectDetails() {
+        const response = await api.get(`/subjects/${this.subjectId}`);
+        this.subject = response.data;
+      },
+      async fetchChapters() {
+        const response = await api.get(`/subjects/${this.subjectId}/chapters`);
+        this.chapters = response.data;
+      },
+      async addChapter() {
+        await api.post(`/subjects/${this.subjectId}/chapters`, this.newChapter);
+        this.newChapter = { name: '', description: '' };
+        await this.fetchChapters();
+      },
+      async deleteChapter(chapterId) {
+        if (confirm('Are you sure? This will delete the chapter and all its quizzes.')) {
+          await api.delete(`/chapters/${chapterId}`);
+          await this.fetchChapters();
+          this.selectedChapter = null;
+        }
+      },
+      openChapterEditModal(chapter) {
+        this.editingChapter = { ...chapter };
+        this.chapterEditModal.show();
+      },
+      async updateChapter() {
+        await api.put(`/chapters/${this.editingChapter.id}`, this.editingChapter);
+        this.chapterEditModal.hide();
+        await this.fetchChapters();
+      },
+      // --- Quiz Methods ---
+      async selectChapter(chapter) {
+        this.selectedChapter = chapter;
+        await this.fetchQuizzes();
+      },
+      async fetchQuizzes() {
+        if (!this.selectedChapter) return;
+        const response = await api.get(`/chapters/${this.selectedChapter.id}/quizzes`);
+        this.quizzes = response.data;
+      },
+      async addQuiz() {
+        if (!this.selectedChapter) return;
+        await api.post(`/chapters/${this.selectedChapter.id}/quizzes`, this.newQuiz);
+        this.newQuiz = { time_duration: '', remarks: '' };
+        await this.fetchQuizzes();
+      },
+      async deleteQuiz(quizId) {
+        if (confirm('Are you sure?')) {
+          await api.delete(`/quizzes/${quizId}`);
+          await this.fetchQuizzes();
+        }
+      },
+      openQuizEditModal(quiz) {
+        this.editingQuiz = { ...quiz };
+        this.quizEditModal.show();
+      },
+      async updateQuiz() {
+        await api.put(`/quizzes/${this.editingQuiz.id}`, this.editingQuiz);
+        this.quizEditModal.hide();
         await this.fetchQuizzes();
       }
     },
-    openQuizEditModal(quiz) {
-      this.editingQuiz = { ...quiz };
-      this.quizEditModal.show();
+    mounted() {
+      this.chapterEditModal = new Modal(document.getElementById('editChapterModal'));
+      this.quizEditModal = new Modal(document.getElementById('editQuizModal'));
     },
-    async updateQuiz() {
-      await api.put(`/quizzes/${this.editingQuiz.id}`, this.editingQuiz);
-      this.quizEditModal.hide();
-      await this.fetchQuizzes();
+    created() {
+      this.fetchSubjectDetails();
+      this.fetchChapters();
     }
-  },
-  mounted() {
-    this.chapterEditModal = new Modal(document.getElementById('editChapterModal'));
-    this.quizEditModal = new Modal(document.getElementById('editQuizModal'));
-  },
-  created() {
-    this.fetchSubjectDetails();
-    this.fetchChapters();
   }
-}
 </script>
   

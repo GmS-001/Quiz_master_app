@@ -7,7 +7,6 @@ import io
 from . import celery_app
 from .extensions import db
 from datetime import datetime, timedelta, timezone
-from dateutil.relativedelta import relativedelta
 
 
 @celery_app.task
@@ -42,8 +41,6 @@ def send_quiz_report_email(result_data):
 def send_daily_reminders():
     """Finds users who haven't taken a quiz in 3 days and sends a reminder."""
     three_days_ago = datetime.utcnow() - timedelta(days=3)
-    
-    # Find IDs of users who HAVE taken a quiz recently
     recent_users_q = db.session.query(Score.user_id).filter(Score.timestamp > three_days_ago).distinct()
     recent_user_ids = [r[0] for r in recent_users_q.all()]
 

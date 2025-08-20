@@ -5,12 +5,9 @@ const apiClient = axios.create({
   baseURL: 'https://quiz-master-backend-iv0n.onrender.com/api',
 });
 
-// This is an Axios interceptor. It's a function that runs
-// before each request is sent.
 apiClient.interceptors.request.use(config => {
   const token = store.state.token;
   if (token) {
-    // If a token exists, add it to the Authorization header
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

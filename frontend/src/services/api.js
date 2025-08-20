@@ -2,7 +2,7 @@ import axios from 'axios';
 import store from '../store'; // We need to access the store to get the token
 
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://quiz-master-backend-iv0n.onrender.com/api',
 });
 
 // This is an Axios interceptor. It's a function that runs
